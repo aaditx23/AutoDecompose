@@ -15,10 +15,21 @@ repositories {
 // Read more: https://plugins.jetbrains.com/docs/intellij/tools-gradle-intellij-plugin.html
 intellij {
     version.set("2024.1.7")
-    type.set("IC") // Target IDE Platform
+    type.set("IU") // Target IDE Platform
 
-    plugins.set(listOf(/* Plugin Dependencies */))
+    plugins.set(listOf(
+        "java",
+        "org.jetbrains.kotlin",
+        "com.intellij.java",
+    ))
 }
+
+dependencies {
+//    implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.9.25")
+}
+
+
+
 
 tasks {
     // Set the JVM compatibility versions
