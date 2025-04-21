@@ -1,6 +1,7 @@
 package com.aaditx23.autodecompose
 
 
+import com.intellij.openapi.application.ReadAction
 import com.intellij.psi.PsiDirectory
 import com.intellij.psi.PsiFile
 import com.intellij.psi.util.PsiUtilCore
@@ -19,7 +20,11 @@ object PackageProvider {
 
     fun fromPsiDirectory(directory: PsiDirectory?): String? {
         return directory?.let {
-            JavaDirectoryService.getInstance().getPackage(it)?.qualifiedName
+            // Execute inside a read action to ensure proper thread access
+            ReadAction.compute<String?, Throwable> {
+                // Getting the package name safely inside read action
+                JavaDirectoryService.getInstance().getPackage(it)?.qualifiedName
+            }
         }
     }
 
