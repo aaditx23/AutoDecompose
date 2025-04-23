@@ -3,12 +3,8 @@ package com.aaditx23.autodecompose
 import com.aaditx23.autodecompose.TemplateProvider.navRootEntry
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.fileEditor.FileDocumentManager
-import com.intellij.openapi.ui.Messages
-import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.openapi.vfs.VfsUtil
 import com.intellij.psi.*
-import com.intellij.psi.util.PsiTreeUtil
-import com.intellij.util.IncorrectOperationException
 import com.intellij.openapi.project.Project
 
 import com.intellij.psi.PsiFile
@@ -62,6 +58,43 @@ fun appendToNavRootFile(
         }
     }
 }
+
+fun appendRootComponent(
+    rootComponentPath: String,
+    composableName: String,
+    project: Project,
+    childFunPackage: String
+) {
+    val psiFile = findPsiFile(rootComponentPath, project) ?: return
+    val document = FileDocumentManager.getInstance().getDocument(psiFile.virtualFile) ?: return
+    val fileLines = document.text.lines().toMutableList()
+
+    // Get root component entry (statement and import)
+    val (newConfigLine, importLine) = TemplateProvider.rootComponentEntry(composableName, childFunPackage)
+
+    ApplicationManager.getApplication().runWriteAction {
+        WriteCommandAction.runWriteCommandAction(project) {
+
+            // 1. Insert new Configuration entry after the last Configuration.XConfig -> ... line
+            val configRegex = Regex("""Configuration\.\w+Config\s*->\s*\w+Child\(.*\)""")
+            val lastConfigLineIndex = fileLines.indexOfLast { configRegex.containsMatchIn(it) }
+            if (lastConfigLineIndex != -1) {
+                fileLines.add(lastConfigLineIndex + 1, newConfigLine)
+            }
+
+            // 2. Insert import above class RootComponent
+            val classIndex = fileLines.indexOfFirst { it.contains("class RootComponent(") }
+            if (classIndex != -1) {
+                fileLines.add(classIndex, importLine)
+            }
+
+            // Apply changes
+            document.setText(fileLines.joinToString("\n"))
+            FileDocumentManager.getInstance().saveDocument(document)
+        }
+    }
+}
+
 
 
 

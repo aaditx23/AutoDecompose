@@ -38,12 +38,12 @@ fun action(project: Project, dialog: NavigationDialog) {
 
     val flags = mutableMapOf(
         "navRoot" to false,
+        "rootComp" to false,
         "child" to false,
         "config" to false,
         "function" to false,
         "composables" to false
     )
-    var packageFlag = false
     var pkg = Packages("", "", "", false)
     var psi = PsiDirs()
 
@@ -52,6 +52,7 @@ fun action(project: Project, dialog: NavigationDialog) {
         val status = buildString {
             appendLine("Status:")
             appendLine("✔ NavRoot Updated: ${flags["navRoot"]}")
+            appendLine("✔ RootComponent Updated: ${flags["navRoot"]}")
             appendLine("✔ Child.kt Appended: ${flags["child"]}")
             appendLine("✔ Config.kt Appended: ${flags["config"]}")
             appendLine("✔ Child Function Created: ${flags["function"]}")
@@ -123,6 +124,14 @@ fun action(project: Project, dialog: NavigationDialog) {
                 // Task 2: Append to Child.kt
                 ApplicationManager.getApplication().invokeAndWait {
                     appendToChildFile(dialog.childFileChooser.text, composable, project, pkg.composable)
+                    flags["rootComp"] = true
+                    updateStatus()
+                }
+            }
+
+            if (flags["rootComp"] == true) {
+                ApplicationManager.getApplication().invokeAndWait {
+                    appendRootComponent(dialog.rootComponentFileChooser.text, composable, project, pkg.childFun)
                     flags["child"] = true
                     updateStatus()
                 }
@@ -149,9 +158,9 @@ fun action(project: Project, dialog: NavigationDialog) {
 
                     psiDir?.let {
                         createFile(
-                            filePath = "${dir.path}/${composable}Child.kt",
+                            filePath = "${dir.path}/${composable.unCapitalize()}Child.kt",
                             directory = it,
-                            fileName = "${composable}Child.kt",
+                            fileName = "${composable.unCapitalize()}Child.kt",
                             content = childCode,
                             project = project
                         )
@@ -210,3 +219,7 @@ fun action(project: Project, dialog: NavigationDialog) {
     )
 }
 
+fun String.unCapitalize(): String {
+    if (this.isEmpty()) return this // Return the string as is if it's empty
+    return this.substring(0, 1).lowercase() + this.substring(1)
+}

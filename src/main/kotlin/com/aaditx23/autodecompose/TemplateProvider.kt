@@ -8,6 +8,13 @@ object TemplateProvider {
 
         return Pair(statement, importLine)
     }
+    fun rootComponentEntry(composableName: String, childFunPackage: String): Pair<String, String> {
+        val statement = "                        Configuration.${composableName}Config -> ${composableName.unCapitalize()}Child(context, navigation)\n"
+        val importLine = "import $childFunPackage.${composableName.unCapitalize()}Child\n\n"
+
+        return Pair(statement, importLine)
+    }
+
 
 
     fun childEntry(composable: String, componentPackage: String): Pair<String, String> {

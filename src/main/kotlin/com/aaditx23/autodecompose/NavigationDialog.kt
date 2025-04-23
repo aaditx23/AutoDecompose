@@ -1,18 +1,18 @@
 package com.aaditx23.autodecompose
 
+import com.intellij.openapi.fileChooser.FileChooserDescriptorFactory
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.DialogWrapper
-import java.awt.BorderLayout
+import com.intellij.openapi.ui.TextFieldWithBrowseButton
 import java.awt.Dimension
 import java.io.File
 import javax.swing.*
-import kotlin.io.path.Path
-import kotlin.io.path.exists
 
 class NavigationDialog(val project: Project) : DialogWrapper(true) {
 
     companion object {
         private var instance: NavigationDialog? = null
+
 
         fun getInstance(project: Project): NavigationDialog {
             return instance ?: NavigationDialog(project).also {
@@ -21,25 +21,31 @@ class NavigationDialog(val project: Project) : DialogWrapper(true) {
         }
     }
 
-    init {
-        instance = this
-    }
+    private var paths: StoredPaths = StoredPaths().default(getDefaultPath())
+
 
     val composableNameField = JTextField(20)
-    val childFileChooser = FileChooserWithButton("Child.kt")
-    val configFileChooser = FileChooserWithButton("Config.kt")
-    val navRootFileChooser = FileChooserWithButton("NavRoot.kt")
-    val rootComponentFileChooser = FileChooserWithButton("RootComponent.kt")
-    val childFunctionDirChooser = FileChooserWithButton("ChildFunctionDir")
-    val composableFilesDirChooser = FileChooserWithButton("ComposableDir")
+    val childFileChooser = TextFieldWithBrowseButton()
+    val configFileChooser = TextFieldWithBrowseButton()
+    val navRootFileChooser = TextFieldWithBrowseButton()
+    val rootComponentFileChooser = TextFieldWithBrowseButton()
+    val childFunctionDirChooser = TextFieldWithBrowseButton()
+    val composableFilesDirChooser = TextFieldWithBrowseButton()
 
     val statusLabel = JLabel("Ready")
     val triggerActionButton = JButton("Run")
 
     init {
+        println("INIT INIT INIT")
         title = "Add Decompose Navigation"
+        instance = this
+        println(getDefaultPath())
+        paths = PathStorage.load(project, getDefaultPath())
+        setupFileChoosers()
+
         init()
-        loadDefaults()
+        println("INIT COMPLETE")
+
     }
 
     override fun createCenterPanel(): JComponent {
@@ -83,62 +89,76 @@ class NavigationDialog(val project: Project) : DialogWrapper(true) {
         return panel
     }
 
-    private fun loadDefaults() {
-        val base = File(project.basePath ?: return)
-        val composeRoot = File(base, "composeApp/src/commonMain/kotlin")
+    private fun setupFileChoosers() {
+        val descriptorFile = FileChooserDescriptorFactory.createSingleFileDescriptor()
+        val descriptorDir = FileChooserDescriptorFactory.createSingleFolderDescriptor()
 
-        // Load the stored paths using PathStorage
-        val settings = PathStorage.load(project)
+        val defaultPath = getDefaultPath()
 
-        // Set the paths for each chooser
-        listOf(
-            childFileChooser to "childFile",
-            configFileChooser to "configFile",
-            navRootFileChooser to "navRootFile",
-            rootComponentFileChooser to "rootComponentFile",
-            childFunctionDirChooser to "childFunctionDir",
-            composableFilesDirChooser to "composableFileDir"
-        ).forEach { (chooser, key) ->
-            val saved = settings?.let {
-                when (key) {
-                    "childFile" -> it.childFile
-                    "configFile" -> it.configFile
-                    "navRootFile" -> it.navRootFile
-                    "rootComponentFile" -> it.rootComponentFile
-                    "childFunctionDir" -> it.childFunctionDir
-                    "composableFileDir" -> it.composableFileDir
-                    else -> null
+        fun setupChooser(
+            chooser: TextFieldWithBrowseButton,
+            title: String,
+            descriptor: com.intellij.openapi.fileChooser.FileChooserDescriptor,
+            initial: String?,
+            onUpdate: (String) -> Unit
+        ) {
+            chooser.addBrowseFolderListener(title, null, project, descriptor)
+            chooser.text = initial ?: defaultPath
+
+            chooser.textField.document.addDocumentListener(object : javax.swing.event.DocumentListener {
+                override fun insertUpdate(e: javax.swing.event.DocumentEvent?) = update()
+                override fun removeUpdate(e: javax.swing.event.DocumentEvent?) = update()
+                override fun changedUpdate(e: javax.swing.event.DocumentEvent?) = update()
+
+                private fun update() {
+                    onUpdate(chooser.text)
+                    savePaths()
                 }
-            }
-            when {
-                saved != null -> chooser.setPath(saved)
-                composeRoot.exists() -> chooser.setPath(composeRoot.path)
-            }
+            })
         }
 
-        // Persist on file select
-        listOf(
-            "childFile" to childFileChooser,
-            "configFile" to configFileChooser,
-            "navRootFile" to navRootFileChooser,
-            "rootComponentFile" to rootComponentFileChooser,
-            "childFunctionDir" to childFunctionDirChooser,
-            "composableFileDir" to composableFilesDirChooser
-        ).forEach { (key, chooser) ->
-            chooser.onPathChange = { newPath ->
-                val currentPaths = settings ?: StoredPaths(null, null, null, null, null, null)
-                val updatedPaths = when (key) {
-                    "childFile" -> currentPaths.copy(childFile = newPath)
-                    "configFile" -> currentPaths.copy(configFile = newPath)
-                    "navRootFile" -> currentPaths.copy(navRootFile = newPath)
-                    "rootComponentFile" -> currentPaths.copy(rootComponentFile = newPath)
-                    "childFunctionDir" -> currentPaths.copy(childFunctionDir = newPath)
-                    "composableFileDir" -> currentPaths.copy(composableFileDir = newPath)
-                    else -> currentPaths
-                }
-                PathStorage.save(project, updatedPaths)
-            }
+        setupChooser(childFileChooser, "Select Child File", descriptorFile, paths.childFile) {
+            paths.childFile = it
+            println("ChildFile ${paths.childFile}")
         }
+
+        setupChooser(configFileChooser, "Select Config File", descriptorFile, paths.configFile) {
+            paths.configFile = it
+            println("ConfigFile ${paths.configFile}")
+        }
+
+        setupChooser(navRootFileChooser, "Select Navigation Root", descriptorFile, paths.navRootFile) {
+            paths.navRootFile = it
+            println("NavRootFile ${paths.navRootFile}")
+        }
+
+        setupChooser(rootComponentFileChooser, "Select Root Component File", descriptorFile, paths.rootComponentFile) {
+            paths.rootComponentFile = it
+            println("RootComponentFile ${paths.rootComponentFile}")
+        }
+
+        setupChooser(childFunctionDirChooser, "Select Child Function Dir", descriptorDir, paths.childFunctionDir) {
+            paths.childFunctionDir = it
+            println("ChildFunctionDir ${paths.childFunctionDir}")
+        }
+
+        setupChooser(composableFilesDirChooser, "Select Composable File Dir", descriptorDir, paths.composableFileDir) {
+            paths.composableFileDir = it
+            println("ComposableFileDir ${paths.composableFileDir}")
+        }
+
+        println("COMPLETE")
     }
 
+
+
+    private fun getDefaultPath(): String {
+        val base = File(project.basePath ?: return "")
+        val composeRoot = File(base, "composeApp/src/commonMain/kotlin")
+        return composeRoot.path
+    }
+
+    private fun savePaths() {
+       PathStorage.save(project, paths)
+    }
 }
