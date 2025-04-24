@@ -31,8 +31,11 @@
         <action id="com.aaditx23.autodecompose.NavigationAction"
                 class="com.aaditx23.autodecompose.NavigationAction"
                 text="Add Decompose Navigation"
-                description="Automate decompose navigation setup">
+                description="Automate decompose navigation setup"
+                icon="AllIcons.Actions.AddFile"
+        >
             <add-to-group group-id="ToolsMenu" anchor="last"/>
+
         </action>
 
     </actions>
